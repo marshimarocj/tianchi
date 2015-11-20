@@ -10,10 +10,17 @@ from sklearn.linear_model import LogisticRegression
 #global params
 listdir = "/home/apexgpu/data/tianchi/lists/"
 imgdir = '/home/apexgpu/data/tianchi/imgs/tianchi_fm_img1_'
+# CJ: global variable is a good place to place config information such as dir name
+
 #init in load_items
 items = {}
 category = {}
 describe = {}
+# CJ: Making these variables global is dangerous,
+# are you sure you won't change them in your code?
+# event if they are commonly used variables, you can
+# access them by call a load function, which return these variables.
+
 #init in prepare_item_txt_feature
 key_desc = []
 #init in load_matches
@@ -28,6 +35,15 @@ key_cat_matrix = []
 #init in load vali
 test = {}
 test_match = {}
+# CJ: for similar reasons, these variables shouldn't be global variable.
+# global variable is a very bad coding habit. Even for acmers, they
+# have to change this bad behavior to be a SE. And I don't see any reason
+# for a non-acmers to have this habit.
+# in python, only the basic types (int, float, ...) are passed by copy,
+# all other objects are passed by reference, so there is no reason to use
+# global variables. It is very dangerous since you may modify them somewhere
+# in your code unexpectedly. Then with global variable, you can never know where
+# you changed it incorrectly.
 
 #func
 def load_items():
@@ -35,6 +51,15 @@ def load_items():
 	itemfile = open(listdir+"dim_items.txt",'r')
 	lines = itemfile.readlines()
 	itemfile.close()
+	# CJ: readlines is a little bit brute force
+	# since you may not need all the information in the file.
+	# This also leads to unnecessary memory occupation if file is not small
+	# a simple way to read file line by line could be:
+	# with open(itemfile) as f:
+	# 	for line in f:
+	#		process(line)
+	# such code also saves the line f.close()
+	# for the usage and meaning of "with", you can google it
 	print 'Num of items:',len(lines)
 	for line in lines:
 		item_id,rest = line.split(' ',1)
@@ -46,17 +71,39 @@ def load_items():
 			print 'No name!'
 			terms = ''
 		items[item_id] = [cat_id,terms.split(',')]
+		# CJ: you are starting a new section of logic after this line,
+		# so it's better to leave one blank line after this line
+		# so that logic sections can be separated by blank lines.
+		# It is a good habit to make code clear and more readable
+		# since in doing experiments, you are likely to change your past code in the near future,
+		# which means that you are likely to read your own code.
+		# blank lines do lead to more lines of code, but when we are talking
+		# about succinct code, we are talking about logic.
+
 		#save to category
 		if cat_id in category:
 			category[cat_id].append(item_id)
 		else:
 			category[cat_id] = [item_id]
+		# CJ:  a more uniform way to handle key not in map issue:
+		# if cat_id not in category:
+		# 	category[cat_id] = []
+		# category[cat_id].append(cat_id)
+
+		#the above blank line is added by CJ for the same reason
 		#count term
 		for term in terms.split(','):
 			if term in describe:
 				describe[term] += 1
 			else:
 				describe[term] = 1
+		# CJ: you can use the above uniform way to handle this section of code as well
+		# CJ: usually after preprocessing, your program just copes with consecutive int IDs,
+		# which is fast to process in array/map and save memory. Just store the string to int map
+		# in another file when you need interpret/case study the result.
+
+	# CJ: the above blank line is added by CJ for the same reason.
+	# I won't add blank line in other functions and just leave them for exercise
 	#count
 	print 'Num of category:',len(category)
 	print 'Num of describe:',len(describe)
@@ -65,6 +112,9 @@ def load_items():
 	for term in describe:
 		if describe[term] >=20:
 			count += 1
+		# CJ:  it is better encode 20 by a variable, say "xxThreshold", since it is likely that
+		# we will tune this threshold in the future, if you mention 20 in more than one place in your code
+		# it is likely to cause bug when you need to change the threshold 20 in the future
 	print 'describe>=20:',count
 	print '**load items done in %.1f s**\n'%(time.time() - starttime)
 
@@ -73,6 +123,7 @@ def prepare_item_txt_feature(thresh = 20):
 	for term in describe:
 		if describe[term]>=thresh:
 			key_desc.append(term)
+	# CJ: this could be written by one line using filter function
 	print 'desc vector:',len(key_desc)
 	#desc_ref
 	desc_ref = {}
@@ -86,6 +137,7 @@ def prepare_item_txt_feature(thresh = 20):
 			if term in desc_ref:
 				item_feature[desc_ref[term]] = True
 		'''
+
 		#sparse feature
 		item_feature = []
 		for term in items[item_id][1]:
@@ -118,10 +170,22 @@ def load_matches():
 					match[item_id] += [match_id]
 					match[match_id] += [item_id]
 					matchcount += 1
+					# CJ: It is good to use A += B if B has more than one element for code concise
+					# But for one element, just call add(), list has other memory overhead
+					# don't waste any unnecessary memory
 	print 'Num of match pairs:',matchcount
 	#remove dup
 	count = 0
 	for item_id in items:
+		# CJ: for large block or embedded if block
+		# one trick to avoid unnecessary indention in code
+		# is to write as:
+		# if len(match[item_id]) <= 0
+		# 	continue/return
+		# code to do the work
+		# this is especially useful when you just want to process one case
+		# but have several cases to skip and the judgment of these other cases
+		# have to be processed by several if conditions
 		if len(match[item_id])>0:
 			match_items.append(item_id)
 			nodup = []
@@ -230,6 +294,9 @@ def divide_gt_rand(target = 5000):
 	cPickle.dump(vali,outfile)
 	outfile.close()
 	print '**save done**'
+	# CJ: when you use cPickle, you usually want to save more space
+	# rather than its readbility, so you could use 'wb' to save more space on disk
+	# if you want readability, you can use json to save file
 
 def divide_gt(target = 5000):
 	vali = {}
@@ -307,6 +374,10 @@ def check_divide():
 			pass
 		else:
 			test_cat.append(items[test_id][0])
+		# CJ: could be abbriviated by
+		# if items[test_id][0] not in testcat:
+		# 	test_cat.append(items[test_id][0])
+		# you should know the not keyword, it's in the tutorial
 	print 'test_cat:',len(test_cat)
 	count = 0
 	for cat_id in test_cat:
@@ -469,6 +540,12 @@ def divide_data():
 					train_pos.append((item_id,match_id))
 	print 'train_pos:',len(train_pos)
 	#form neg
+	# CJ: don't write too much codes in one line
+	# usually one line consists less than 80 characters
+	# you could know how to break one line of code in to several lines
+	# by google it
+	# I consider writing such code as too lazy to know how to break one
+	# line of code in to several lines in python
 	for i,pos_pair in enumerate(train_pos):
 		neg_pair = (category[items[pos_pair[0]][0]][random.randint(0,len(category[items[pos_pair[0]][0]])-1)], category[items[pos_pair[1]][0]][random.randint(0,len(category[items[pos_pair[1]][0]])-1)])
 		while(neg_pair[1] in match[neg_pair[0]]):
@@ -518,7 +595,7 @@ def train_LR():
 	data = np.ones(len(row),np.bool)
 
 	train_X = coo_matrix((data,(row,col)),shape=(len(train_Y),3*len(key_desc)))
-	
+
 	Cs = [1.,10.,100.]
 	Penaltys = ['l1','l2']
 	for penalty in Penaltys:
@@ -650,15 +727,15 @@ if __name__ == '__main__':
 	load_matches()
 	#load_bought()
 	init_key_cat()
-	
+
 	##divide_gt()
 	##check_divide()
 	##check_test()
-	
+
 	load_vali()
 	update_matches()
 	##check_matrix()
-	
+
 	#reduce_candi()
 	update_category()
 	print '****INIT DONE****\n'
